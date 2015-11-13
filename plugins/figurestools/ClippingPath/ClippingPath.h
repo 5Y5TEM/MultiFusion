@@ -1,3 +1,8 @@
+/*************************************
+ *        Maxim Finojenok
+ *             2015
+ ************************************/
+
 #ifndef CLIPPINGPATH_H
 #define CLIPPINGPATH_H
 
