@@ -1,7 +1,7 @@
-/*************************************
+/**********************************
  *        Maxim Finojenok
  *             2015
- ************************************/
+ *********************************/
 
 #ifndef CLIPPINGPATH_H
 #define CLIPPINGPATH_H
@@ -93,7 +93,7 @@ class J_ClippingPath:public FigureToolInterface, public InterfacePlugin
         void clip();
 
     public:
-        virtual void cutFigure(GVectorFigure*, GVectorFigure*);
+        virtual void cutFigure(GVectorFigure* figureForClip, GVectorFigure* clippingPath);
 
         virtual void createPlugin(QObject *parent, QString idParent,
                                   plugin::PluginsManager *manager);
@@ -119,10 +119,13 @@ class J_ClippingPath:public FigureToolInterface, public InterfacePlugin
         virtual ~J_ClippingPath();
 
     private:
-        MainWindowInterface *mainWin;
-        PaintWidgetInterface *painter;
-        RPWInterface *rpwi;
-        GSRInterface *gsri;
+        GVectorFigure* getLastFigure();
+        GVectorFigure* getFigureByIndex( int index );
+        int getIndexOfLastFigure();
+        QPolygonF getPointsOfFigure( GVectorFigure *figure );
+        QPolygonF intersectOfPoints( QPolygonF pointsOfFigureForClip, QPolygonF pointsOfClippingPath, bool closedOfFigureForClip, bool closedOfClippingPath );
+        int getCountSplinePoints(QPolygonF points);
+        GSRInterface *selectionRect;
         QAction *ActionClippingPath;
         ToolButton *button;
         static bool resourcesInited;
