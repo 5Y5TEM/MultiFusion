@@ -1,93 +1,87 @@
 #include "ClippingPath.h"
 
-bool J_ClippingPath::resourcesInited = false;
+bool ClippingPath::resourcesInited = false;
 
-void J_ClippingPath::clip(){
+void ClippingPath::clip(){
     GVectorFigure *figureForClip( 0 );
     GVectorFigure *clippingPath = getLastFigure();
     int indexOfLastFigureForClip = getIndexOfLastFigure() - 1;
     for (int i = 0; i < indexOfLastFigureForClip; i++){
         figureForClip = getFigureByIndex( i );
-        cutFigure( figureForClip, clippingPath );
+        cutFigureOnPath( figureForClip, clippingPath );
     }
-
     clippingPath->setVisible(false);
     selectionRect->reset();
 }
 
-int J_ClippingPath::getIndexOfLastFigure(){
-    return selectionRect->countSelected();
-}
-
-GVectorFigure* J_ClippingPath::getLastFigure(){
+GVectorFigure* ClippingPath::getLastFigure(){
     int countClipFigures = selectionRect->countSelected() - 1;
     return dynamic_cast<GVectorFigure*>( selectionRect->selected( countClipFigures ));
 }
 
-GVectorFigure* J_ClippingPath::getFigureByIndex( int index ){
+GVectorFigure* ClippingPath::getFigureByIndex( int index ){
     return dynamic_cast<GVectorFigure*>( selectionRect->selected( index ) );
 }
 
-void J_ClippingPath::cutFigure( GVectorFigure *figureForClip, GVectorFigure *clippingPath ){
+int ClippingPath::getIndexOfLastFigure(){
+    return selectionRect->countSelected();
+}
+
+void ClippingPath::cutFigureOnPath( GVectorFigure *figureForClip, GVectorFigure *clippingPath ){
     QPolygonF pointsOfFigure = getPointsOfFigure( figureForClip );
     QPolygonF pointsOfPath  = getPointsOfFigure( clippingPath );
-    QPolygonF clippedPoints = intersectOfPoints( pointsOfFigure, pointsOfPath, figureForClip->isClosed(), clippingPath->isClosed() );
-    figureForClip->setPoints( clippedPoints, figureForClip->frame() );
-    //оепедекюрэ setPoints() !!!!!!!!!!!!!!!!!!!!
+    QPolygonF pointsOfClippedFigure = intersectOfPoints( pointsOfFigure, pointsOfPath, figureForClip->isClosed(), clippingPath->isClosed() );
+    figureForClip->setPoints( pointsOfClippedFigure, figureForClip->frame() );
 }
 
-QPolygonF J_ClippingPath::getPointsOfFigure( GVectorFigure *figure ){
-    return figure->points(figure->frame());
+QPolygonF ClippingPath::getPointsOfFigure( GVectorFigure *figure ){
+    return figure->points( figure->frame() );
 }
 
-QPolygonF J_ClippingPath::intersectOfPoints( QPolygonF pointsOfFigure, QPolygonF pointsOfPath, bool closedOfFigure, bool closedOfPath ){
-
-    QPainterPath pone;
-    pone.moveTo( pointsOfFigure[0] );
-    int countSplinePointsOfFigure = getCountSplinePoints( pointsOfFigure );
-    for( int i = 1; i < ( countSplinePointsOfFigure + 1 ); i += 3 )
-        pone.cubicTo(pointsOfFigure[i], pointsOfFigure[i + 1], pointsOfFigure[i + 2] );
+QPolygonF ClippingPath::intersectOfPoints( QPolygonF pointsOfFigure, QPolygonF pointsOfPath, bool closedOfFigure, bool closedOfPath ){
+    QPainterPath painterFigure = paintPath( pointsOfFigure );
     if( closedOfFigure )
-        pone.closeSubpath();
-
-    QPainterPath ptwo;
-    ptwo.moveTo( pointsOfPath[0] );
-    int countSplinePointsOfPath = getCountSplinePoints( pointsOfPath );
-    for( int i = 1; i < ( countSplinePointsOfPath + 1 ); i += 3 )
-        ptwo.cubicTo(pointsOfPath[i], pointsOfPath[i + 1], pointsOfPath[i + 2] );
+        painterFigure.closeSubpath();
+    QPainterPath painterPath = paintPath( pointsOfPath );
     if( closedOfPath )
-        ptwo.closeSubpath();
-
-    QPainterPath unioin=pone.intersected(ptwo);
-    pone=unioin;
-    QMatrix qm;
-    QPolygonF pmain=pone.toFillPolygon(qm);
-    QPolygonF newMain;
-    int countPoints=pmain.size();
-    for( int i = 0; i < countPoints; i++ )
-    {
-        QPointF curPoint=pmain[i];
-        if(i == 0 || i == (countPoints-1))
-            newMain << curPoint<< curPoint;
-        else
-            newMain << curPoint<< curPoint<< curPoint;
-    }
-    return newMain;
+        painterPath.closeSubpath();
+    QPolygonF polygonIntersection = ( painterFigure.intersected( painterPath )).toFillPolygon();
+    QPolygonF pointsOfClippedFigure = polygonToPointsOfFigure( polygonIntersection );
+    return pointsOfClippedFigure;
 }
 
-int J_ClippingPath::getCountSplinePoints(QPolygonF points){
+int ClippingPath::getCountSplinePoints(QPolygonF points){
     return ( ( points.size() - 1 ) / 3 ) * 3;
 }
 
-void J_ClippingPath::createPlugin(QObject *parent, QString idParent,
-        plugin::PluginsManager *manager)
+QPainterPath ClippingPath::paintPath(QPolygonF points){
+    QPainterPath painterFigure;
+    painterFigure.moveTo( points[0] );
+    int countSplinePointsOfFigure = getCountSplinePoints( points );
+    for( int i = 1; i < ( countSplinePointsOfFigure + 1 ); i += 3 )
+        painterFigure.cubicTo(points[i], points[i + 1], points[i + 2] );
+    return painterFigure;
+}
+
+QPolygonF ClippingPath::polygonToPointsOfFigure(QPolygonF polygon){
+    QPolygonF pointsOfFigure;
+    int countPolygon = polygon.size();
+    for( int i = 0; i < countPolygon; i++ ){
+        if( i == 0 || i == ( countPolygon - 1 ))
+            pointsOfFigure << polygon[i] << polygon[i];
+        else
+            pointsOfFigure << polygon[i] << polygon[i] << polygon[i];
+    }
+    return pointsOfFigure;
+}
+
+void ClippingPath::createPlugin(QObject *parent, QString idParent, plugin::PluginsManager *manager)
 {
     if(idParent == "Main")
     {
         MainWindowInterface *mainWin = MAINWINDOW(parent);
         if(mainWin!=0)
         {
-
             PaintWidgetInterface *painter = PAINTWIDGETINTERFACE(mainWin->getPaintWidget());
             RPWInterface *rpwi = RPWINTEFACE(painter->getRealPaintWidget());
             selectionRect = GSRINTEFACE(rpwi->getSelection());
@@ -103,47 +97,48 @@ void J_ClippingPath::createPlugin(QObject *parent, QString idParent,
     manager->addPlugins(this,"ClippingPath");
 }
 
-QWidget* J_ClippingPath::getWidget() {
+QWidget* ClippingPath::getWidget()
+{
     return 0;
 }
 
-QString J_ClippingPath::getName()const
+QString ClippingPath::getName()const
 {
     return "ClippingPath";
 }
 
-QIcon J_ClippingPath::icon()
+QIcon ClippingPath::icon()
 {
     return QIcon( ":/clippingpath/images/clippingpath.png" );
 }
 
-FigureToolInterface::CreateStyle J_ClippingPath::createStyle() const
+FigureToolInterface::CreateStyle ClippingPath::createStyle() const
 {
     return createAndResize;
 }
 
-FigureToolInterface::FiguresInfo J_ClippingPath::figure() const
+FigureToolInterface::FiguresInfo ClippingPath::figure() const
 {
     FigureInfo info;
     return ( FiguresInfo() << info );
 }
 
-QString J_ClippingPath::description() const
+QString ClippingPath::description() const
 {
     return tr( "ClippingPath" );
 }
 
-QString J_ClippingPath::figureName() const
+QString ClippingPath::figureName() const
 {
     return tr( "ClippingPath" );
 }
 
-void J_ClippingPath::toolSelected()
+void ClippingPath::toolSelected()
 {
     emit setActive(getName());
 }
 
-J_ClippingPath::J_ClippingPath(const plugin::PluginsManager *manager )
+ClippingPath::ClippingPath(const plugin::PluginsManager *manager )
 {
     if( !resourcesInited )
     {
@@ -153,11 +148,44 @@ J_ClippingPath::J_ClippingPath(const plugin::PluginsManager *manager )
 
 }
 
-J_ClippingPath::~J_ClippingPath()
+ClippingPath::~ClippingPath()
 {
     delete ActionClippingPath;
 }
 
-EXPORT_PLUGIN( J_ClippingPath, FigureToolInterface )
+QObject* ToolButton::getTool()
+{
+    return tool;
+}
+
+void ToolButton::setTool(QObject* t)
+{
+    tool = FIGURETOOL(t);
+}
+
+ToolButton::ToolButton( FigureToolInterface *_tool, QWidget *parent ):
+    ToolButtonInterface( parent ), tool( _tool )
+{
+    setIcon( tool->icon() );
+    setToolTip( tool->description() );
+
+    connect( this, SIGNAL( clicked( bool ) ),
+            this, SLOT( onClicked( bool ) ) );
+}
+
+ToolButton::~ToolButton()
+{
+    delete tool;
+}
+
+void ToolButton::onClicked( bool checked )
+{
+    if( !checked ) return;
+
+    tool->toolSelected();
+    emit toolSelected( tool );
+}
+
+EXPORT_PLUGIN( ClippingPath, FigureToolInterface )
 
 

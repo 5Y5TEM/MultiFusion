@@ -1,4 +1,5 @@
 /**********************************
+ *        ClippingPath.h
  *        Maxim Finojenok
  *             2015
  *********************************/
@@ -6,33 +7,66 @@
 #ifndef CLIPPINGPATH_H
 #define CLIPPINGPATH_H
 
-
-#include <QHBoxLayout>
-#include <QVBoxLayout>
 #include <QMainWindow>
 #include <QMenu>
 #include <QAction>
-#include <QMessageBox>
-#include <QVector>
-#include "./../../../pluginTool/InterfacePlugin.h"
-#include "./../../../pluginTool/Plugin.h"
-#include "./../../../interfaces/ToolBoxInterface.h"
-#include "./../../../interfaces/FigureToolInterface.h"
-#include "./../../../interfaces/MainWindowInterface.h"
-#include "./../../../interfaces/PaintWidgetInterface.h"
-#include "./../../../interfaces/RPWInterface.h"
-#include "./../../../interfaces/GSRInterface.h"
-#include "./../../../interfaces/GContainerInterface.h"
-#include "./../../../interfaces/GObjectInterface.h"
-#include "./../../../interfaces/ToolButtonInterface.h"
-#include "./../../../paintWidget/GVectorFigure.h"
-#include "./../../../paintWidget/GObject.h"
-#include "./../../../paintWidget/GContainer.h"
-
 #include <QToolButton>
 #include <QWidget>
 #include <QObject>
 #include <QMouseEvent>
+#include "./../../../pluginTool/InterfacePlugin.h"
+#include "./../../../interfaces/MainWindowInterface.h"
+#include "./../../../interfaces/PaintWidgetInterface.h"
+#include "./../../../interfaces/RPWInterface.h"
+#include "./../../../interfaces/GSRInterface.h"
+#include "./../../../interfaces/ToolButtonInterface.h"
+#include "./../../../paintWidget/GVectorFigure.h"
+
+class ToolButton;
+
+class ClippingPath:public FigureToolInterface, public InterfacePlugin
+{
+    Q_OBJECT
+    Q_INTERFACES( FigureToolInterface )
+    Q_INTERFACES( InterfacePlugin )
+
+    signals:
+        void setActive(QString);
+
+    public slots:
+        void clip();
+
+    public:
+        ClippingPath( const plugin::PluginsManager *manager );
+        void cutFigureOnPath(GVectorFigure* figureForClip, GVectorFigure* clippingPath);
+        ~ClippingPath();
+
+        void createPlugin(QObject *parent, QString idParent, plugin::PluginsManager *manager);
+        QWidget* getWidget();
+        QString getName() const;
+        QIcon icon();
+        CreateStyle createStyle() const;
+        FiguresInfo figure() const;
+        QString description() const;
+        QString figureName() const;
+        void toolSelected();
+
+    private:
+        GVectorFigure* getLastFigure();
+        GVectorFigure* getFigureByIndex( int index );
+        int getIndexOfLastFigure();
+        QPolygonF getPointsOfFigure( GVectorFigure *figure );
+        QPolygonF intersectOfPoints( QPolygonF pointsOfFigureForClip, QPolygonF pointsOfClippingPath, bool closedOfFigureForClip, bool closedOfClippingPath );
+        int getCountSplinePoints(QPolygonF points);
+        QPainterPath paintPath(QPolygonF points);
+        QPolygonF polygonToPointsOfFigure(QPolygonF polygon);
+
+
+        GSRInterface *selectionRect;
+        QAction *ActionClippingPath;
+        ToolButton *button;
+        static bool resourcesInited;
+};
 
 class ToolButton:public ToolButtonInterface
 {
@@ -43,92 +77,16 @@ class ToolButton:public ToolButtonInterface
         void toolSelected( FigureToolInterface *tool );
 
     public:
-        QObject* getTool()
-        {
-            return tool;
-        }
-
-        void setTool(QObject* t)
-        {
-            tool = FIGURETOOL(t);
-        }
-
-        ToolButton( FigureToolInterface *_tool, QWidget *parent ):
-            ToolButtonInterface( parent ), tool( _tool )
-        {
-            setIcon( tool->icon() );
-            setToolTip( tool->description() );
-
-            connect( this, SIGNAL( clicked( bool ) ),
-                    this, SLOT( onClicked( bool ) ) );
-        }
-
-        virtual ~ToolButton()
-        {
-            delete tool;
-        }
+        QObject* getTool();
+        void setTool(QObject* t);
+        ToolButton( FigureToolInterface *_tool, QWidget *parent );
+        virtual ~ToolButton();
 
     private slots:
-        void onClicked( bool checked )
-        {
-            if( !checked ) return;
-
-            tool->toolSelected();
-            emit toolSelected( tool );
-        }
+        void onClicked( bool checked );
 
     private:
         FigureToolInterface *tool;
-};
-
-class J_ClippingPath:public FigureToolInterface, public InterfacePlugin
-{
-    Q_OBJECT
-    Q_INTERFACES( FigureToolInterface )
-    Q_INTERFACES( InterfacePlugin )
-
-    signals:
-        void setActive(QString);
-    public slots:
-        void clip();
-
-    public:
-        virtual void cutFigure(GVectorFigure* figureForClip, GVectorFigure* clippingPath);
-
-        virtual void createPlugin(QObject *parent, QString idParent,
-                                  plugin::PluginsManager *manager);
-
-        virtual QWidget* getWidget();
-
-        virtual QString getName() const;
-
-        virtual QIcon icon();
-
-        virtual CreateStyle createStyle() const;
-
-        virtual FiguresInfo figure() const;
-
-        virtual QString description() const;
-
-        virtual QString figureName() const;
-
-        virtual void toolSelected();
-
-        J_ClippingPath( const plugin::PluginsManager *manager );
-
-        virtual ~J_ClippingPath();
-
-    private:
-        GVectorFigure* getLastFigure();
-        GVectorFigure* getFigureByIndex( int index );
-        int getIndexOfLastFigure();
-        QPolygonF getPointsOfFigure( GVectorFigure *figure );
-        QPolygonF intersectOfPoints( QPolygonF pointsOfFigureForClip, QPolygonF pointsOfClippingPath, bool closedOfFigureForClip, bool closedOfClippingPath );
-        int getCountSplinePoints(QPolygonF points);
-        GSRInterface *selectionRect;
-        QAction *ActionClippingPath;
-        ToolButton *button;
-        static bool resourcesInited;
 };
 
 #endif // CLIPPINGPATH_H
